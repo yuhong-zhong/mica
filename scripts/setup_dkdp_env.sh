@@ -41,13 +41,21 @@ setup_target()
 			setup_icc ia32
 		fi
 	fi
+    
+    if [ ! -d $RTE_SDK/$RTE_TARGET ]; then
+        meson $RTE_TARGET
+        pushd $RTE_TARGET
+        ninja -j $(nproc)
+        popd
+    fi
+
 	#if [ "$QUIT" == "0" ] ; then
-		if [ ! -d $RTE_SDK/$RTE_TARGET ]; then
-			make config T=${RTE_TARGET} O=$RTE_SDK/$RTE_TARGET
-			sed -i 's/CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE=.*/CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE=8192/g' $RTE_SDK/$RTE_TARGET/.config
-			rm $RTE_SDK/$RTE_TARGET/include/rte_config.h
-		fi
-		make -C $RTE_SDK/$RTE_TARGET
+		#if [ ! -d $RTE_SDK/$RTE_TARGET ]; then
+			#make config T=${RTE_TARGET} O=$RTE_SDK/$RTE_TARGET
+			#sed -i 's/CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE=.*/CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE=8192/g' $RTE_SDK/$RTE_TARGET/.config
+			#rm $RTE_SDK/$RTE_TARGET/include/rte_config.h
+		#fi
+		#make -C $RTE_SDK/$RTE_TARGET
 	#fi
 	#echo "------------------------------------------------------------------------------"
 	#echo " RTE_TARGET exported as $RTE_TARGET"
@@ -109,7 +117,8 @@ remove_igb_uio_module()
 #
 load_igb_uio_module()
 {
-	if [ ! -f $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko ];then
+    DPDK_UIO_MODULE="$RTE_SDK/dpdk-kmods/linux/igb_uio/igb_uio.ko"
+	if [ ! -f $DPDK_UIO_MODULE ];then
 		echo "## ERROR: Target does not have the DPDK UIO Kernel Module."
 		echo "       To fix, please try to rebuild target."
 		return
@@ -129,7 +138,7 @@ load_igb_uio_module()
 	# be loaded.
 
 	echo "Loading DPDK UIO module"
-	sudo /sbin/insmod $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko
+	sudo /sbin/insmod $DPDK_UIO_MODULE
 	if [ $? -ne 0 ] ; then
 		echo "## ERROR: Could not load kmod/igb_uio.ko."
 		quit
@@ -265,8 +274,9 @@ load_igb_uio_module
 
 grep_meminfo
 
-sudo $RTE_SDK/tools/pci_unbind.py --force --bind=igb_uio xge0 xge1 xge2 xge3
-sudo $RTE_SDK/tools/pci_unbind.py --force --bind=igb_uio xge4 xge5 xge6 xge7
+sudo $RTE_SDK/usertools/dpdk-devbind.py --force --bind=igb_uio enp0s25
+#sudo $RTE_SDK/tools/pci_unbind.py --force --bind=igb_uio xge0 xge1 xge2 xge3
+#sudo $RTE_SDK/tools/pci_unbind.py --force --bind=igb_uio xge4 xge5 xge6 xge7
 
 # disable OOM kills
 sudo sysctl -w vm.overcommit_memory=1
