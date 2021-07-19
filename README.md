@@ -43,7 +43,6 @@ Executables
 Compiling Executables
 ---------------------
 
-	# unpack DPDK as "DPDK" to the directory containing mica
 	$ cd mica/build
 	$ ../scripts/setup_dkdp_env.sh	# this uses sudo
 	$ ../configure_all.sh
