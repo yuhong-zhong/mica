@@ -2,6 +2,13 @@
 
 ##### from DPDK/tools/setup.sh
 
+download_target() {
+    pushd $RTE_SDK_PARENT
+    wget https://fast.dpdk.org/rel/dpdk-${RTE_SDK_VERSION}.tar.xz
+    mkdir DPDK && tar xvf dpdk-${RTE_SDK_VERSION}.tar.xz -C DPDK --strip-components 1
+    popd
+}
+
 #
 # Sets up envronment variables for ICC.
 #
@@ -46,6 +53,8 @@ setup_target()
         meson $RTE_TARGET
         pushd $RTE_TARGET
         ninja -j $(nproc)
+        sudo ninja install
+        sudo ldconfig
         popd
     fi
 
@@ -60,6 +69,15 @@ setup_target()
 	#echo "------------------------------------------------------------------------------"
 	#echo " RTE_TARGET exported as $RTE_TARGET"
 	#echo "------------------------------------------------------------------------------"
+}
+
+setup_igb_uid_module() {
+    pushd $RTE_SDK
+    git clone git://dpdk.org/dpdk-kmods
+    pushd "dpdk-kmods/linux/igb_uio/"
+    make
+    popd
+    popd
 }
 
 #
@@ -259,17 +277,20 @@ ls_mnt_huge()
 
 ##### from DPDK/tools/setup.sh
 
-
-export RTE_SDK=`readlink -f $(dirname ${BASH_SOURCE[0]})/../../DPDK`
+export RTE_SDK_VERSION="20.11.2"
+export RTE_SDK_PARENT=`readlink -f $(dirname ${BASH_SOURCE[0]})/../../`
+echo $RTE_SDK_PARENT
+export RTE_SDK="${RTE_SDK_PARENT}/DPDK"
 export RTE_TARGET=x86_64-default-linuxapp-gcc
 
-pushd "$RTE_SDK"; setup_target; popd
+download_target; pushd "$RTE_SDK"; setup_target; popd
 
 #if [ "$HOSTNAME" == "server" ]; then
 	set_numa_pages 8192 8192	# 32 GiB
 #else
 #	set_numa_pages 2048 2048	# 8 GiB
 #fi
+setup_igb_uid_module
 load_igb_uio_module
 
 grep_meminfo

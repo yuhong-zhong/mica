@@ -14,8 +14,13 @@
 
 #pragma once
 
-#include "table.c"
-#include "alloc_pool.c"
-#include "alloc_malloc.c"
-#include "alloc_dynamic.c"
+//#include "table.c"
+//#include "alloc_pool.c"
+//#include "alloc_malloc.c"
+//#include "alloc_dynamic.c"
+
+#include "table.h"
+#include "alloc_pool.h"
+#include "alloc_malloc.h"
+#include "alloc_dynamic.h"
 

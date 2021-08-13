@@ -11,11 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "shm.h"
-
-#include "util.h"
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <linux/limits.h>
@@ -28,6 +23,9 @@
 #include <rte_lcore.h>
 #include <rte_debug.h>
 #endif
+
+#include "shm.h"
+#include "util.h"
 
 MEHCACHED_BEGIN
 
@@ -693,6 +691,17 @@ size_t
 mehcached_shm_get_memuse()
 {
 	return mehcached_shm_used_memory;
+}
+
+static
+size_t
+mehcached_get_memuse()
+{
+    struct rusage usage;
+    int ret = getrusage(RUSAGE_SELF, &usage);
+    assert(ret == 0);
+    (void)ret;
+    return (size_t)usage.ru_maxrss * 1024 + mehcached_shm_get_memuse();
 }
 
 void *

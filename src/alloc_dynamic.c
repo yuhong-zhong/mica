@@ -14,8 +14,13 @@
 
 #pragma once
 
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
 #include "alloc_dynamic.h"
 #include "table.h"
+#include "shm.h"
+#include "util.h"
 
 MEHCACHED_BEGIN
 

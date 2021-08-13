@@ -50,13 +50,13 @@ static uint16_t mehcached_num_tx_desc = RTE_TEST_TX_DESC_DEFAULT;
 
 static const struct rte_eth_conf mehcached_port_conf = {
 	.rxmode = {
-        .max_rx_pkt_len = ETHER_MAX_LEN,
+        .max_rx_pkt_len = RTE_ETHER_MAX_LEN,
 		.split_hdr_size = 0,
-		.header_split   = 0, /**< Header Split disabled */
-		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
-		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
-		.hw_strip_crc   = 0, /**< CRC stripped by hardware */
+		//.header_split   = 0, /**< Header Split disabled */
+		//.hw_ip_checksum = 0, /**< IP checksum offload disabled */
+		//.hw_vlan_filter = 0, /**< VLAN filtering disabled */
+		//.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
+		//.hw_strip_crc   = 0, /**< CRC stripped by hardware */
 		.mq_mode = ETH_MQ_RX_NONE,
 	},
 	.txmode = {
@@ -72,7 +72,7 @@ static const struct rte_eth_conf mehcached_port_conf = {
 #else
 		.status =           RTE_FDIR_REPORT_STATUS_ALWAYS,
 #endif
-		.flexbytes_offset = 0,
+		//.flexbytes_offset = 0,
 		.drop_queue =       0,
 	},
 };
@@ -96,7 +96,7 @@ static const struct rte_eth_txconf mehcached_tx_conf = {
 	.tx_free_thresh = 0, /* Use PMD default values */
 	.tx_rs_thresh = 0, /* Use PMD default values */
 #ifndef MEHCACHED_USE_SOFT_FDIR
-    .txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOMULTMEMP | ETH_TXQ_FLAGS_NOOFFLOADS),
+    //.txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOMULTMEMP | ETH_TXQ_FLAGS_NOOFFLOADS),
 #else
     .txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOOFFLOADS),
 #endif
@@ -389,26 +389,26 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 	}
 
 	// initialize driver
-#ifdef RTE_LIBRTE_IXGBE_PMD
-	printf("initializing PMD\n");
-	if (rte_ixgbe_pmd_init() < 0)
-	{
-		fprintf(stderr, "failed to initialize ixgbe pmd\n");
-		return false;
-	}
-#endif
+/*#ifdef RTE_LIBRTE_IXGBE_PMD*/
+	/*printf("initializing PMD\n");*/
+	/*if (rte_ixgbe_pmd_init() < 0)*/
+	/*{*/
+		/*fprintf(stderr, "failed to initialize ixgbe pmd\n");*/
+		/*return false;*/
+	/*}*/
+/*#endif*/
 
-	printf("probing PCI\n");
-	if (rte_eal_pci_probe() < 0)
-	{
-		fprintf(stderr, "failed to probe PCI\n");
-		return false;
-	}
+    /*printf("probing PCI\n");*/
+    /*if (rte_eal_pci_probe() < 0)*/
+    /*{*/
+        /*fprintf(stderr, "failed to probe PCI\n");*/
+        /*return false;*/
+    /*}*/
 
 	// TODO: initialize and set up timer for forced TX
 
 	// check port and queue limits
-	uint8_t num_ports = rte_eth_dev_count();
+	uint8_t num_ports = rte_eth_dev_count_avail();
 	assert(num_ports <= MEHCACHED_MAX_PORTS);
 	*out_num_ports = num_ports;
 
@@ -542,7 +542,7 @@ void
 mehcached_free_network(uint64_t port_mask)
 {
 	uint8_t port_id;
-	uint8_t num_ports = rte_eth_dev_count();
+	uint8_t num_ports = rte_eth_dev_count_avail();
 	
 	for (port_id = 0; port_id < num_ports; port_id++)
 	{
@@ -566,7 +566,7 @@ mehcached_free_network(uint64_t port_mask)
 bool
 mehcached_set_dst_port_mask(uint8_t port_id, uint16_t l4_dst_port_mask)
 {
-	struct rte_fdir_masks mask;
+	struct rte_eth_fdir_masks mask;
 	memset(&mask, 0, sizeof(mask));
 	mask.dst_port_mask = l4_dst_port_mask;	// this must be little-endian (host)
 
@@ -591,11 +591,11 @@ mehcached_set_dst_port_mapping(uint8_t port_id, uint16_t l4_dst_port, uint32_t l
 	// }
 	uint16_t queue = (uint16_t)lcore;
 
-	struct rte_fdir_filter filter;
+	struct rte_eth_fdir_filter filter;
 	memset(&filter, 0, sizeof(filter));
-	filter.iptype = RTE_FDIR_IPTYPE_IPV4;
-	filter.l4type = RTE_FDIR_L4TYPE_UDP;
-	filter.port_dst = rte_cpu_to_be_16((uint16_t)l4_dst_port);    // this must be big-endian
+	/*filter.iptype = RTE_FDIR_IPTYPE_IPV4;*/
+	/*filter.l4type = RTE_FDIR_L4TYPE_UDP;*/
+	/*filter.port_dst = rte_cpu_to_be_16((uint16_t)l4_dst_port);    // this must be big-endian*/
     uint16_t soft_id = (uint16_t)l4_dst_port;	// will be unique on each port (with perfect filter)
 
 	int ret = rte_eth_dev_fdir_add_perfect_filter(port_id, &filter, soft_id, (uint8_t)queue, 0);

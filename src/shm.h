@@ -48,6 +48,10 @@ mehcached_shm_get_page_size();
 size_t
 mehcached_shm_get_memuse();
 
+static
+size_t
+mehcached_get_memuse();
+
 void *
 mehcached_shm_malloc_contiguous(size_t size, size_t numa_node);
 

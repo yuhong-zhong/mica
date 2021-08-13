@@ -465,7 +465,7 @@ static
 bool
 mehcached_compare_keys(const uint8_t *key1, size_t key1_len, const uint8_t *key2, size_t key2_len)
 {
-    return key1_len == key2_len && mehcached_memcmp8(key1, key2, key1_len);
+    return (key1_len == key2_len && mehcached_memcmp8(key1, key2, key1_len));
 }
 
 static

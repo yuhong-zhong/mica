@@ -27,6 +27,8 @@
 #include "netbench_config.h"
 #include "netbench_hot_item_hash.h"
 #include "table.h"
+#include "util.h"
+#include "shm.h"
 
 #include <rte_launch.h>
 #include <rte_eal.h>
@@ -165,9 +167,9 @@ mehcached_remote_send_response(struct server_state *state, struct rte_mbuf *mbuf
         next_key += MEHCACHED_ROUNDUP8(MEHCACHED_KEY_LENGTH(req->kv_length_vec)) + MEHCACHED_ROUNDUP8(MEHCACHED_VALUE_LENGTH(req->kv_length_vec));
     }
 
-    struct ether_hdr *eth = (struct ether_hdr *)rte_pktmbuf_mtod(mbuf, unsigned char *);
-    struct ipv4_hdr *ip = (struct ipv4_hdr *)((unsigned char *)eth + sizeof(struct ether_hdr));
-    struct udp_hdr *udp = (struct udp_hdr *)((unsigned char *)ip + sizeof(struct ipv4_hdr));
+    struct rte_ether_hdr *eth = (struct rte_ether_hdr *)rte_pktmbuf_mtod(mbuf, unsigned char *);
+    struct rte_ipv4_hdr *ip = (struct rte_ipv4_hdr *)((unsigned char *)eth + sizeof(struct rte_ether_hdr));
+    struct rte_udp_hdr *udp = (struct rte_udp_hdr *)((unsigned char *)ip + sizeof(struct rte_ipv4_hdr));
 
     uint16_t packet_length = (uint16_t)(next_key - (uint8_t *)packet);
 
@@ -181,7 +183,7 @@ mehcached_remote_send_response(struct server_state *state, struct rte_mbuf *mbuf
 
     // swap source and destination
     {
-        struct ether_addr t = eth->s_addr;
+        struct rte_ether_addr t = eth->s_addr;
         eth->s_addr = eth->d_addr;
         eth->d_addr = t;
     }
@@ -199,20 +201,20 @@ mehcached_remote_send_response(struct server_state *state, struct rte_mbuf *mbuf
     // reset TTL
     ip->time_to_live = 64;
 
-    ip->total_length = rte_cpu_to_be_16((uint16_t)(packet_length - sizeof(struct ether_hdr)));
-    udp->dgram_len = rte_cpu_to_be_16((uint16_t)(packet_length - sizeof(struct ether_hdr) - sizeof(struct ipv4_hdr)));
+    ip->total_length = rte_cpu_to_be_16((uint16_t)(packet_length - sizeof(struct rte_ether_hdr)));
+    udp->dgram_len = rte_cpu_to_be_16((uint16_t)(packet_length - sizeof(struct rte_ether_hdr) - sizeof(struct rte_ipv4_hdr)));
 
-    mbuf->pkt.data_len = packet_length;
-    mbuf->pkt.pkt_len = (uint32_t)packet_length;
-    mbuf->pkt.next = NULL;
-    mbuf->pkt.nb_segs = 1;
+    mbuf->data_len = packet_length;
+    mbuf->pkt_len = (uint32_t)packet_length;
+    mbuf->next = NULL;
+    mbuf->nb_segs = 1;
     mbuf->ol_flags = 0;
 
 #ifndef NDEBUG
-    rte_mbuf_sanity_check(mbuf, RTE_MBUF_PKT, 1);
-    if (rte_pktmbuf_headroom(mbuf) + mbuf->pkt.data_len > mbuf->buf_len)
+    //rte_mbuf_sanity_check(mbuf, RTE_MBUF_PKT, 1);
+    if (rte_pktmbuf_headroom(mbuf) + mbuf->data_len > mbuf->buf_len)
     {
-        printf("data_len = %hd\n", mbuf->pkt.data_len);
+        printf("data_len = %hd\n", mbuf->data_len);
         uint8_t request_index;
         const uint8_t *next_key = packet->data + sizeof(struct mehcached_request) * (size_t)packet->num_requests;
         for (request_index = 0; request_index < packet->num_requests; request_index++)
@@ -223,7 +225,7 @@ mehcached_remote_send_response(struct server_state *state, struct rte_mbuf *mbuf
             next_key += MEHCACHED_ROUNDUP8(MEHCACHED_KEY_LENGTH(req->kv_length_vec)) + MEHCACHED_ROUNDUP8(MEHCACHED_VALUE_LENGTH(req->kv_length_vec));
         }
     }
-    assert(rte_pktmbuf_headroom(mbuf) + mbuf->pkt.data_len <= mbuf->buf_len);
+    assert(rte_pktmbuf_headroom(mbuf) + mbuf->data_len <= mbuf->buf_len);
 #endif
 
     mehcached_send_packet(port_id, mbuf);
@@ -456,7 +458,7 @@ mehcached_benchmark_server_proc(void *arg)
         {
             size_t packet_index;
             for (packet_index = 0; packet_index < packet_count; packet_index++)
-                state->bytes_rx += (uint64_t)(packet_mbufs[packet_index]->pkt.data_len + 24);   // 24 for PHY overheads
+                state->bytes_rx += (uint64_t)(packet_mbufs[packet_index]->data_len + 24);   // 24 for PHY overheads
         }
 
 
@@ -561,8 +563,8 @@ mehcached_benchmark_server_proc(void *arg)
 #endif
 #endif
 
-                uint8_t new_key_values[ETHER_MAX_LEN - ETHER_CRC_LEN - sizeof(struct mehcached_batch_packet)];
-                size_t new_key_value_length = ETHER_MAX_LEN - ETHER_CRC_LEN - sizeof(struct mehcached_batch_packet) - sizeof(struct mehcached_request) * (size_t)packet->num_requests;
+                uint8_t new_key_values[RTE_ETHER_MAX_LEN - RTE_ETHER_CRC_LEN - sizeof(struct mehcached_batch_packet)];
+                size_t new_key_value_length = RTE_ETHER_MAX_LEN - RTE_ETHER_CRC_LEN - sizeof(struct mehcached_batch_packet) - sizeof(struct mehcached_request) * (size_t)packet->num_requests;
 
 #ifdef MEHCACHED_MEASURE_LATENCY
                 uint32_t org_expire_time;
@@ -1029,10 +1031,10 @@ mehcached_benchmark_server_proc(void *arg)
                         //     max_loss = oloss;
 
 #ifndef NDEBUG
-                        if (stats.fdirmiss != 0)
-                            printf("non-zero fdirmiss on port %hhu\n", port_id);
-                        if (stats.rx_nombuf != 0)
-                            printf("non-zero rx_nombuf on port %hhu\n", port_id);
+                        /*if (stats.fdirmiss != 0)*/
+                            /*printf("non-zero fdirmiss on port %hhu\n", port_id);*/
+                        /*if (stats.rx_nombuf != 0)*/
+                            /*printf("non-zero rx_nombuf on port %hhu\n", port_id);*/
 #endif
                         // printf(" port %hhu new_ipackets %lu new_ierrors %lu", port_id, new_ipackets, new_ierrors);
                     }
@@ -1143,9 +1145,9 @@ mehcached_diagnosis(struct mehcached_server_conf *server_conf)
 
                 struct mehcached_batch_packet *packet = rte_pktmbuf_mtod(mbuf, struct mehcached_batch_packet *);
 
-                struct ether_hdr *eth = (struct ether_hdr *)rte_pktmbuf_mtod(mbuf, unsigned char *);
-                struct ipv4_hdr *ip = (struct ipv4_hdr *)((unsigned char *)eth + sizeof(struct ether_hdr));
-                struct udp_hdr *udp = (struct udp_hdr *)((unsigned char *)ip + sizeof(struct ipv4_hdr));
+                struct rte_ether_hdr *eth = (struct rte_ether_hdr *)rte_pktmbuf_mtod(mbuf, unsigned char *);
+                struct rte_ipv4_hdr *ip = (struct rte_ipv4_hdr *)((unsigned char *)eth + sizeof(struct rte_ether_hdr));
+                struct rte_udp_hdr *udp = (struct rte_udp_hdr *)((unsigned char *)ip + sizeof(struct rte_ipv4_hdr));
 
                 uint16_t mapping_id = rte_be_to_cpu_16(udp->dst_port);
 
@@ -1184,10 +1186,10 @@ mehcached_diagnosis(struct mehcached_server_conf *server_conf)
                 if (error_count < 16)   // report up to 16 errors per period
                 {
                     if (!correct_port)
-                        printf("wrong port: mapping = %hu, port = %hhu; fdir.hash = %hu, fdir.id = %hu\n", mapping_id, port_id, mbuf->pkt.hash.fdir.hash, mbuf->pkt.hash.fdir.id);
+                        printf("wrong port: mapping = %hu, port = %hhu; fdir.hash = %hu, fdir.id = %hu\n", mapping_id, port_id, mbuf->hash.fdir.hash, mbuf->hash.fdir.id);
 
                     if (!correct_queue)
-                        printf("wrong queue: mapping = %hu, port = %hhu, queue = %hhu; fdir.hash = %hu, fdir.id = %hu\n", mapping_id, port_id, thread_id, mbuf->pkt.hash.fdir.hash, mbuf->pkt.hash.fdir.id);
+                        printf("wrong queue: mapping = %hu, port = %hhu, queue = %hhu; fdir.hash = %hu, fdir.id = %hu\n", mapping_id, port_id, thread_id, mbuf->hash.fdir.hash, mbuf->hash.fdir.id);
                 }
 
                 if (correct_port && correct_queue)
@@ -1376,7 +1378,7 @@ mehcached_benchmark_server(const char *machine_filename, const char *server_name
     int rte_argc = sizeof(rte_argv) / sizeof(rte_argv[0]);
 
     //rte_set_log_level(RTE_LOG_DEBUG);
-    rte_set_log_level(RTE_LOG_NOTICE);
+    rte_log_set_level(RTE_LOGTYPE_USER1, RTE_LOG_NOTICE);
 
     int ret = rte_eal_init(rte_argc, rte_argv);
     if (ret < 0)
@@ -1399,8 +1401,8 @@ mehcached_benchmark_server(const char *machine_filename, const char *server_name
     uint8_t port_id;
     for (port_id = 0; port_id < server_conf->num_ports; port_id++)
     {
-        struct ether_addr mac_addr;
-        memcpy(&mac_addr, server_conf->ports[port_id].mac_addr, sizeof(struct ether_addr));
+        struct rte_ether_addr mac_addr;
+        memcpy(&mac_addr, server_conf->ports[port_id].mac_addr, sizeof(struct rte_ether_addr));
         if (rte_eth_dev_mac_addr_add(port_id, &mac_addr, 0) != 0)
         {
             fprintf(stderr, "failed to add a MAC address\n");

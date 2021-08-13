@@ -240,7 +240,10 @@ mehcached_set_item_value(struct mehcached_item *item, const uint8_t *value, uint
 
 static
 bool
-mehcached_compare_keys(const uint8_t *key1, size_t key1_len, const uint8_t *key2, size_t key2_len);
+mehcached_compare_keys(const uint8_t *, size_t, const uint8_t *, size_t);
+//static
+//bool
+//mehcached_compare_keys(const uint8_t *key1, size_t key1_len, const uint8_t *key2, size_t key2_len);
 
 static
 void
