@@ -693,7 +693,7 @@ mehcached_shm_get_memuse()
 	return mehcached_shm_used_memory;
 }
 
-static
+//static
 size_t
 mehcached_get_memuse()
 {

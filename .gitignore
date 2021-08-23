@@ -19,3 +19,7 @@ netbench_analysis
 
 perf.data
 perf.data.old
+
+*.swp
+*.files
+*.out

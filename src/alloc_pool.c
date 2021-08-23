@@ -17,10 +17,11 @@
 #include "alloc_pool.h"
 #include "table.h"
 #include "shm.h"
+#include <assert.h>
 
 MEHCACHED_BEGIN
 
-static
+//static
 void
 mehcached_pool_init(struct mehcached_pool *alloc, uint64_t size, bool concurrent_alloc_read, bool concurrent_alloc_write, size_t numa_node)
 {
@@ -76,7 +77,7 @@ mehcached_pool_init(struct mehcached_pool *alloc, uint64_t size, bool concurrent
     }
 }
 
-static
+//static
 void
 mehcached_pool_free(struct mehcached_pool *alloc)
 {
@@ -86,14 +87,14 @@ mehcached_pool_free(struct mehcached_pool *alloc)
 		assert(false);
 }
 
-static
+//static
 void
 mehcached_pool_reset(struct mehcached_pool *alloc)
 {
     alloc->head = alloc->tail = 0;
 }
 
-static
+//static
 void
 mehcached_pool_lock(struct mehcached_pool *alloc MEHCACHED_UNUSED)
 {
@@ -109,7 +110,7 @@ mehcached_pool_lock(struct mehcached_pool *alloc MEHCACHED_UNUSED)
 #endif
 }
 
-static
+//static
 void
 mehcached_pool_unlock(struct mehcached_pool *alloc MEHCACHED_UNUSED)
 {
@@ -124,21 +125,21 @@ mehcached_pool_unlock(struct mehcached_pool *alloc MEHCACHED_UNUSED)
 #endif
 }
 
-static
+//static
 struct mehcached_alloc_item *
 mehcached_pool_item(const struct mehcached_pool *alloc, uint64_t pool_offset)
 {
     return (struct mehcached_alloc_item *)(alloc->data + (pool_offset & alloc->mask));
 }
 
-static
+//static
 void
 mehcached_pool_check_invariants(const struct mehcached_pool *alloc MEHCACHED_UNUSED)
 {
     assert(alloc->tail - alloc->head <= alloc->size);
 }
 
-static
+//static
 void
 mehcached_pool_pop_head(struct mehcached_pool *alloc)
 {
@@ -151,7 +152,7 @@ mehcached_pool_pop_head(struct mehcached_pool *alloc)
     mehcached_pool_check_invariants(alloc);
 }
 
-static
+//static
 uint64_t
 mehcached_pool_push_tail(struct mehcached_pool *alloc, uint32_t item_size)
 {
@@ -184,14 +185,14 @@ mehcached_pool_push_tail(struct mehcached_pool *alloc, uint32_t item_size)
     return item_offset & MEHCACHED_ITEM_OFFSET_MASK;
 }
 
-static
+//static
 uint64_t
 mehcached_pool_allocate(struct mehcached_pool *alloc, uint32_t item_size)
 {
     return mehcached_pool_push_tail(alloc, item_size);
 }
 
-static
+//static
 bool
 mehcached_pool_is_valid(const struct mehcached_pool *alloc, uint64_t pool_offset)
 {

@@ -24,6 +24,7 @@
 #include <rte_lcore.h>
 #include <rte_byteorder.h>
 #include <rte_ethdev.h>
+#include <rte_flow.h>
 #include <rte_log.h>
 #include <rte_debug.h>
 
@@ -98,7 +99,7 @@ static const struct rte_eth_txconf mehcached_tx_conf = {
 #ifndef MEHCACHED_USE_SOFT_FDIR
     //.txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOMULTMEMP | ETH_TXQ_FLAGS_NOOFFLOADS),
 #else
-    .txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOOFFLOADS),
+    //.txq_flags = (ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOREFCOUNT | ETH_TXQ_FLAGS_NOOFFLOADS),
 #endif
 };
 
@@ -445,6 +446,11 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 // 		printf("queue %hhu mapped to lcore %hu\n", queue, lcore);
 // #endif
 // 		queue++;
+// 	}// 		mehcached_lcore_to_queue[lcore] = queue;
+// #ifndef NDEBUG
+// 		printf("queue %hhu mapped to lcore %hu\n", queue, lcore);
+// #endif
+// 		queue++;
 // 	}
 
 	// initialize ports
@@ -563,6 +569,7 @@ mehcached_free_network(uint64_t port_mask)
 	}
 }
 
+/*
 bool
 mehcached_set_dst_port_mask(uint8_t port_id, uint16_t l4_dst_port_mask)
 {
@@ -593,9 +600,9 @@ mehcached_set_dst_port_mapping(uint8_t port_id, uint16_t l4_dst_port, uint32_t l
 
 	struct rte_eth_fdir_filter filter;
 	memset(&filter, 0, sizeof(filter));
-	/*filter.iptype = RTE_FDIR_IPTYPE_IPV4;*/
-	/*filter.l4type = RTE_FDIR_L4TYPE_UDP;*/
-	/*filter.port_dst = rte_cpu_to_be_16((uint16_t)l4_dst_port);    // this must be big-endian*/
+    //filter.iptype = RTE_FDIR_IPTYPE_IPV4;
+    //filter.l4type = RTE_FDIR_L4TYPE_UDP;
+    //filter.port_dst = rte_cpu_to_be_16((uint16_t)l4_dst_port);    // this must be big-endian
     uint16_t soft_id = (uint16_t)l4_dst_port;	// will be unique on each port (with perfect filter)
 
 	int ret = rte_eth_dev_fdir_add_perfect_filter(port_id, &filter, soft_id, (uint8_t)queue, 0);
@@ -606,4 +613,42 @@ mehcached_set_dst_port_mapping(uint8_t port_id, uint16_t l4_dst_port, uint32_t l
 	}
 
 	return true;
+}
+*/
+
+bool mehcached_map_port_to_queue(uint8_t port_id, uint16_t l4_dst_port, uint32_t lcore) {
+    struct rte_flow_attr attr = { .ingress = 1 };
+    struct rte_flow_item pattern[4];
+    struct rte_flow_action actions[2];
+    struct rte_flow_item_eth eth;
+    struct rte_flow_item_ipv4 ipv4;
+    struct rte_flow_item_udp udp;
+    struct rte_flow_action_queue queue;
+    struct rte_flow *flow;
+    struct rte_flow_error error;
+
+    pattern[0].type = RTE_FLOW_ITEM_TYPE_ETH;
+    pattern[0].spec = &eth;
+
+    pattern[1].type = RTE_FLOW_ITEM_TYPE_IPV4;
+    pattern[1].spec = &ipv4;
+
+    udp.hdr.dst_port = rte_cpu_to_be_16((uint16_t)l4_dst_port);
+    pattern[2].type = RTE_FLOW_ITEM_TYPE_UDP;
+    pattern[2].spec = &udp;
+
+    
+    pattern[3].type = RTE_FLOW_ITEM_TYPE_END;
+
+    queue.index = (uint16_t)lcore;
+    actions[0].type = RTE_FLOW_ACTION_TYPE_QUEUE;
+    actions[0].conf = &queue;
+    actions[1].type = RTE_FLOW_ACTION_TYPE_END;
+
+    if (rte_flow_validate(port_id, &attr, pattern, actions, &error))
+       return false;
+
+    flow = rte_flow_create(port_id, &attr, pattern, actions, &error); 
+
+    return true;
 }

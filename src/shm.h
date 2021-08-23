@@ -48,7 +48,7 @@ mehcached_shm_get_page_size();
 size_t
 mehcached_shm_get_memuse();
 
-static
+//static
 size_t
 mehcached_get_memuse();
 

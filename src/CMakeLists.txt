@@ -52,6 +52,10 @@ set(SOURCES ${SOURCES} hash.c)
 set(SOURCES ${SOURCES} city.c)
 set(SOURCES ${SOURCES} stopwatch.c)
 set(SOURCES ${SOURCES} shm.c)
+set(SOURCES ${SOURCES} table.c)
+set(SOURCES ${SOURCES} alloc_dynamic.c)
+set(SOURCES ${SOURCES} alloc_pool.c)
+set(SOURCES ${SOURCES} util.c)
 
 # common libraries
 set(LIBRARIES ${LIBRARIES} rt crypto perf_count m pthread)
@@ -66,8 +70,9 @@ set(RTE_TARGET x86_64-default-linuxapp-gcc)
 add_definitions(-DUSE_DPDK)
 add_definitions(-isystem ${RTE_SDK}/${RTE_TARGET}/include -include rte_config.h)
 link_directories(${LINK_DIRECTORIES} ${RTE_SDK}/${RTE_TARGET}/lib)
-set(LIBRARIES ${LIBRARIES} rte_eal rte_malloc rte_mempool rte_ring)	# for basic features
-set(LIBRARIES ${LIBRARIES} ethdev rte_mbuf rte_pmd_ixgbe librte_pmd_ring.a)	# for network features
+set(LIBRARIES ${LIBRARIES} rte_eal rte_mempool rte_ring)	# for basic features
+#set(LIBRARIES ${LIBRARIES} rte_ethdev rte_mbuf rte_pmd_ixgbe librte_pmd_ring.a)	# for network features
+set(LIBRARIES ${LIBRARIES} rte_ethdev rte_mbuf)	# for network features
 set(LIBRARIES ${LIBRARIES} pthread rt)	# to make sure symbols in pthread and rt are resolved
 
 if(NOT "${NLOCAL}" STREQUAL "yes")

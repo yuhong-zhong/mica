@@ -26,7 +26,7 @@
 #include "stopwatch.h"
 #include "netbench_config.h"
 #include "netbench_hot_item_hash.h"
-#include "table.h"
+//#include "table.h"
 #include "util.h"
 #include "shm.h"
 
@@ -450,7 +450,7 @@ mehcached_benchmark_server_proc(void *arg)
             size_t mailbox_index;
             // for (mailbox_index = 0; mailbox_index < MEHCACHED_MAX_THREADS; mailbox_index++)
             for (mailbox_index = 0; mailbox_index < MEHCACHED_MAX_NUMA_NODES; mailbox_index++)
-                packet_count += (size_t)rte_ring_sc_dequeue_burst(state->soft_fdir_mailbox[mailbox_index], (void **)(packet_mbufs + packet_count), (unsigned int)(pipeline_size - packet_count));
+                packet_count += (size_t)rte_ring_sc_dequeue_burst(state->soft_fdir_mailbox[mailbox_index], (void **)(packet_mbufs + packet_count), (unsigned int)(pipeline_size - packet_count), NULL);
         }
 #endif
 
@@ -1419,25 +1419,27 @@ mehcached_benchmark_server(const char *machine_filename, const char *server_name
     uint8_t hot_item_id;
 #endif
 
+    /*
     for (port_id = 0; port_id < server_conf->num_ports; port_id++)
     {
         if (!mehcached_set_dst_port_mask(port_id, 0xffff))
             return;
     }
+    */
 
     for (partition_id = 0; partition_id < server_conf->num_partitions; partition_id++)
     {
         server_conf->partitions[partition_id].thread_id %= (uint8_t)(server_conf->num_threads >> cpu_mode);
         uint8_t thread_id = server_conf->partitions[partition_id].thread_id;
         for (port_id = 0; port_id < server_conf->num_ports; port_id++)
-            if (!mehcached_set_dst_port_mapping(port_id, (uint16_t)partition_id, thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
+            if (!mehcached_map_port_to_queue(port_id, (uint16_t)partition_id, thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
                 return;
     }
 
     for (thread_id = 0; thread_id < server_conf->num_threads; thread_id++)
     {
         for (port_id = 0; port_id < server_conf->num_ports; port_id++)
-            if (!mehcached_set_dst_port_mapping(port_id, (uint16_t)(1024 + thread_id), thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
+            if (!mehcached_map_port_to_queue(port_id, (uint16_t)(1024 + thread_id), thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
                 return;
     }
 
@@ -1447,7 +1449,7 @@ mehcached_benchmark_server(const char *machine_filename, const char *server_name
         server_conf->hot_items[hot_item_id].thread_id %= (uint8_t)(server_conf->num_threads >> cpu_mode);
         uint8_t thread_id = server_conf->hot_items[hot_item_id].thread_id;
         for (port_id = 0; port_id < server_conf->num_ports; port_id++)
-            if (!mehcached_set_dst_port_mapping(port_id, (uint16_t)(2048 + hot_item_id), thread_id))
+            if (!mehcached_map_port_to_queue(port_id, (uint16_t)(2048 + hot_item_id), thread_id))
                 return;
     }
 #endif
