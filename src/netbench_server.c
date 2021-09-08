@@ -1427,19 +1427,24 @@ mehcached_benchmark_server(const char *machine_filename, const char *server_name
     }
     */
 
+    printf("Mapping partition to port\n");
     for (partition_id = 0; partition_id < server_conf->num_partitions; partition_id++)
     {
         server_conf->partitions[partition_id].thread_id %= (uint8_t)(server_conf->num_threads >> cpu_mode);
         uint8_t thread_id = server_conf->partitions[partition_id].thread_id;
-        for (port_id = 0; port_id < server_conf->num_ports; port_id++)
-            if (!mehcached_map_port_to_queue(port_id, (uint16_t)partition_id, thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
+        for (port_id = 1; port_id <= server_conf->num_ports; port_id++)
+            if (!mehcached_map_port_to_queue(port_id, (uint16_t)partition_id, thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode))) {
+                fprintf(stderr, "Can't map partition to port\n");
                 return;
+           }
     }
 
+    printf("Mapping threads to port\n");
     for (thread_id = 0; thread_id < server_conf->num_threads; thread_id++)
     {
         for (port_id = 0; port_id < server_conf->num_ports; port_id++)
             if (!mehcached_map_port_to_queue(port_id, (uint16_t)(1024 + thread_id), thread_id % (uint8_t)(server_conf->num_threads >> cpu_mode)))
+                fprintf(stderr, "Can't map thread to port\n");
                 return;
     }
 

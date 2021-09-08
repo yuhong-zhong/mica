@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <net/if.h>
 
 #include <rte_eal.h>
 #include <rte_lcore.h>
@@ -412,6 +413,7 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 	uint8_t num_ports = rte_eth_dev_count_avail();
 	assert(num_ports <= MEHCACHED_MAX_PORTS);
 	*out_num_ports = num_ports;
+    printf("Ports available: %d\n", num_ports);
 
 	printf("checking queue limits\n");
 	uint8_t port_id;
@@ -422,6 +424,12 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 
 		struct rte_eth_dev_info dev_info;
 		rte_eth_dev_info_get((uint8_t)port_id, &dev_info);
+
+        printf("Device Informations:\n");
+        printf("Port: %d\n", port_id);
+        printf("Driver: %s\n", dev_info.driver_name);
+        printf("IF Index: %d\n", dev_info.if_index);
+        //printf("IF Name: %s\n", if_indextoname(dev_info.if_index));
 
 		if (num_queues > dev_info.max_tx_queues || num_queues > dev_info.max_rx_queues)
 		{
@@ -617,6 +625,7 @@ mehcached_set_dst_port_mapping(uint8_t port_id, uint16_t l4_dst_port, uint32_t l
 */
 
 bool mehcached_map_port_to_queue(uint8_t port_id, uint16_t l4_dst_port, uint32_t lcore) {
+    printf("creating flow -> PORT: %d\tL4 PORT: %d\tCORE: %d\n", port_id, l4_dst_port, lcore);
     struct rte_flow_attr attr = { .ingress = 1 };
     struct rte_flow_item pattern[4];
     struct rte_flow_action actions[2];
@@ -645,8 +654,13 @@ bool mehcached_map_port_to_queue(uint8_t port_id, uint16_t l4_dst_port, uint32_t
     actions[0].conf = &queue;
     actions[1].type = RTE_FLOW_ACTION_TYPE_END;
 
-    if (rte_flow_validate(port_id, &attr, pattern, actions, &error))
+    if (rte_flow_validate(port_id, &attr, pattern, actions, &error)) {
+       printf("Flow validation error!\n");
        return false;
+    }
+    else {
+        printf("Validation success!\n");
+    }
 
     flow = rte_flow_create(port_id, &attr, pattern, actions, &error); 
 
