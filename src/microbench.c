@@ -336,9 +336,9 @@ benchmark(const concurrency_mode_t concurrency_mode, double zipf_theta, double m
     bool concurrent_alloc_write = (concurrency_mode >= CONCURRENCY_MODE_CRCWS);
 
     printf("initializing shm\n");
-	const size_t page_size = 1048576 * 2;
+	const size_t page_size = 1048576 * 2;  // 2MB huge page
 	const size_t num_numa_nodes = 2;
-    const size_t num_pages_to_try = 16384;
+    const size_t num_pages_to_try = 16384;  // 32 GB
     const size_t num_pages_to_reserve = 16384 - 2048;   // give 2048 pages to dpdk
 
 	mehcached_shm_init(page_size, num_numa_nodes, num_pages_to_try, num_pages_to_reserve);

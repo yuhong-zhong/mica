@@ -52,7 +52,7 @@ static uint16_t mehcached_num_tx_desc = RTE_TEST_TX_DESC_DEFAULT;
 
 static const struct rte_eth_conf mehcached_port_conf = {
 	.rxmode = {
-        .max_rx_pkt_len = RTE_ETHER_MAX_LEN,
+		.max_rx_pkt_len = RTE_ETHER_MAX_LEN,
 		.split_hdr_size = 0,
 		//.header_split   = 0, /**< Header Split disabled */
 		//.hw_ip_checksum = 0, /**< IP checksum offload disabled */
@@ -391,21 +391,20 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 	}
 
 	// initialize driver
-/*#ifdef RTE_LIBRTE_IXGBE_PMD*/
-	/*printf("initializing PMD\n");*/
-	/*if (rte_ixgbe_pmd_init() < 0)*/
-	/*{*/
-		/*fprintf(stderr, "failed to initialize ixgbe pmd\n");*/
-		/*return false;*/
-	/*}*/
-/*#endif*/
-
-    /*printf("probing PCI\n");*/
-    /*if (rte_eal_pci_probe() < 0)*/
-    /*{*/
-        /*fprintf(stderr, "failed to probe PCI\n");*/
-        /*return false;*/
-    /*}*/
+// #ifdef RTE_LIBRTE_IXGBE_PMD
+// 	printf("initializing PMD\n");
+// 	if (rte_ixgbe_pmd_init() < 0)
+// 	{
+// 		fprintf(stderr, "failed to initialize ixgbe pmd\n");
+// 		return false;
+// 	}
+// #endif
+// 	printf("probing PCI\n");
+// 	if (rte_eal_pci_probe() < 0)
+// 	{
+// 		fprintf(stderr, "failed to probe PCI\n");
+// 		return false;
+// 	}
 
 	// TODO: initialize and set up timer for forced TX
 
@@ -413,7 +412,7 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 	uint8_t num_ports = rte_eth_dev_count_avail();
 	assert(num_ports <= MEHCACHED_MAX_PORTS);
 	*out_num_ports = num_ports;
-    printf("Ports available: %d\n", num_ports);
+	printf("Ports available: %d\n", num_ports);
 
 	printf("checking queue limits\n");
 	uint8_t port_id;
@@ -425,11 +424,11 @@ mehcached_init_network(uint64_t cpu_mask, uint64_t port_mask, uint8_t *out_num_p
 		struct rte_eth_dev_info dev_info;
 		rte_eth_dev_info_get((uint8_t)port_id, &dev_info);
 
-        printf("Device Informations:\n");
-        printf("Port: %d\n", port_id);
-        printf("Driver: %s\n", dev_info.driver_name);
-        printf("IF Index: %d\n", dev_info.if_index);
-        //printf("IF Name: %s\n", if_indextoname(dev_info.if_index));
+		printf("Device Informations:\n");
+		printf("Port: %d\n", port_id);
+		printf("Driver: %s\n", dev_info.driver_name);
+		printf("IF Index: %d\n", dev_info.if_index);
+		//printf("IF Name: %s\n", if_indextoname(dev_info.if_index));
 
 		if (num_queues > dev_info.max_tx_queues || num_queues > dev_info.max_rx_queues)
 		{

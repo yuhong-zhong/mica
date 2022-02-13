@@ -283,14 +283,14 @@ echo $RTE_SDK_PARENT
 export RTE_SDK="${RTE_SDK_PARENT}/DPDK"
 export RTE_TARGET=x86_64-default-linuxapp-gcc
 
-download_target; pushd "$RTE_SDK"; setup_target; popd
+# download_target; pushd "$RTE_SDK"; setup_target; popd
 
 #if [ "$HOSTNAME" == "server" ]; then
 	set_numa_pages 8192 8192	# 32 GiB
 #else
 #	set_numa_pages 2048 2048	# 8 GiB
 #fi
-setup_igb_uid_module
+# setup_igb_uid_module
 load_igb_uio_module
 
 grep_meminfo
