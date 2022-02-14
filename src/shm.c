@@ -216,9 +216,9 @@ mehcached_shm_init(size_t page_size, size_t num_numa_nodes, size_t num_pages_to_
 		// get physical address
 		size_t pfn = ((size_t) mehcached_shm_pages[page_id].addr) / normal_page_size;
 		off_t offset = (off_t)(sizeof(uint64_t) * pfn);
-		assert(lseek(fd, offset, SEEK_SET) == offset);
+		lseek(fd, offset, SEEK_SET)
 		uint64_t entry;
-		assert(read(fd, &entry, sizeof(uint64_t)) == sizeof(uint64_t));
+		read(fd, &entry, sizeof(uint64_t));
 		mehcached_shm_pages[page_id].paddr = (void *)((entry & 0x7fffffffffffffULL) * normal_page_size);
 	}
 	close(fd);
