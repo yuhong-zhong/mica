@@ -28,6 +28,7 @@ set(LIBRARY_PATH ${LIBRARY_PATH} perf_count/)
 add_definitions(-pthread)
 add_definitions(-g -Wall -Wextra -Wsign-conversion -Winline -Wno-unused-function)
 add_definitions(-Wconversion)
+# add_definitions(-O0)
 add_definitions(-O9)
 add_definitions(-msse4.2 -march=corei7)
 

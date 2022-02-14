@@ -22,6 +22,8 @@
 #include "hash.h"
 #include "zipf.h"
 #include "perf_count/perf_count.h"
+#include "shm.h"
+#include "util.h"
 
 #include "netbench_config.h"
 
