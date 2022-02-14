@@ -18,6 +18,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <numa.h>
 
 #ifdef USE_DPDK
 #include <rte_lcore.h>
@@ -66,6 +68,7 @@ static struct mehcached_shm_page mehcached_shm_pages[MEHCACHED_SHM_MAX_PAGES];
 static struct mehcached_shm_entry mehcached_shm_entries[MEHCACHED_SHM_MAX_ENTRIES];
 static struct mehcached_shm_mapping mehcached_shm_mappings[MEHCACHED_SHM_MAX_MAPPINGS];
 static size_t mehcached_shm_used_memory;
+static uint64_t mehcached_shm_buffer_handles[2];
 
 static const char *mehcached_shm_path_prefix = "/mnt/huge/mehcached_shm_";
 
@@ -150,6 +153,81 @@ mehcached_shm_compare_vaddr(const void *a, const void *b)
 		return 1;
 }
 
+void
+mehcached_shm_init(size_t page_size, size_t num_numa_nodes, size_t num_pages_to_try, size_t num_pages_to_reserve)
+{
+	assert(mehcached_next_power_of_two(page_size) == page_size);
+	assert(page_size == (1 << 21));
+	assert(num_numa_nodes == 2);
+	assert(num_pages_to_try <= MEHCACHED_SHM_MAX_PAGES);
+	assert(num_pages_to_reserve <= num_pages_to_try);
+	assert(num_pages_to_reserve % 2 == 0);
+	assert(num_pages_to_reserve > 0);
+
+	mehcached_shm_state_lock = 0;
+	mehcached_shm_page_size = page_size;
+	memset(mehcached_shm_pages, 0, sizeof(mehcached_shm_pages));
+	memset(mehcached_shm_entries, 0, sizeof(mehcached_shm_entries));
+	memset(mehcached_shm_mappings, 0, sizeof(mehcached_shm_mappings));
+	mehcached_shm_used_memory = 0;
+
+	size_t buffer_size = num_pages_to_reserve * page_size;
+	size_t buffer_size_per_numa = buffer_size / 2;
+
+	mehcached_shm_buffer_handles[0] = (uint64_t) numa_alloc_onnode(buffer_size_per_numa + page_size, 0);
+	assert(mehcached_shm_buffer_handles[0] != 0);
+	mehcached_shm_buffer_handles[1] = (uint64_t) numa_alloc_onnode(buffer_size_per_numa + page_size, 0);
+	assert(mehcached_shm_buffer_handles[1] != 0);
+
+	uint8_t *buffers[2];
+	buffers[0] = (uint8_t *) (((mehcached_shm_buffer_handles[0] + page_size - 1) / page_size) * page_size);
+	buffers[1] = (uint8_t *) (((mehcached_shm_buffer_handles[1] + page_size - 1) / page_size) * page_size);
+
+	int ret;
+	ret = madvise(buffers[0], buffer_size_per_numa, MADV_HUGEPAGE);
+	assert(ret == 0);
+	ret = madvise(buffers[1], buffer_size_per_numa, MADV_HUGEPAGE);
+	assert(ret == 0);
+
+	memset(buffers[0], 0, buffer_size_per_numa);
+	memset(buffers[1], 0, buffer_size_per_numa);
+
+	size_t normal_page_size = (size_t)getpagesize();
+	assert(normal_page_size == (1 << 12));
+	int fd = open("/proc/self/pagemap", O_RDONLY);
+	assert(fd >= 0);
+
+	size_t page_id;
+	for (page_id = 0; page_id < num_pages_to_reserve; page_id++)
+	{
+		size_t numa_node;
+		size_t numa_page_id;
+		if (page_id < num_pages_to_reserve / 2) {
+			numa_node = 0;
+			numa_page_id = page_id;
+		} else {
+			numa_node = 1;
+			numa_page_id = page_id - (num_pages_to_reserve / 2);
+		}
+		mehcached_shm_pages[page_id].path[0] = '\0';
+		mehcached_shm_pages[page_id].addr = buffers[numa_node] + page_size * numa_page_id;
+		mehcached_shm_pages[page_id].numa_node = numa_node;
+
+		// get physical address
+		size_t pfn = ((size_t) mehcached_shm_pages[page_id].addr) / normal_page_size;
+		off_t offset = (off_t)(sizeof(uint64_t) * pfn);
+		assert(lseek(fd, offset, SEEK_SET) == offset);
+		uint64_t entry;
+		assert(read(fd, &entry, sizeof(uint64_t)) == sizeof(uint64_t));
+		mehcached_shm_pages[page_id].paddr = (void *)((entry & 0x7fffffffffffffULL) * normal_page_size);
+	}
+	close(fd);
+
+	// sort by physical address
+	qsort(mehcached_shm_pages, num_pages_to_reserve, sizeof(struct mehcached_shm_page), mehcached_shm_compare_paddr);
+}
+
+/*
 void
 mehcached_shm_init(size_t page_size, size_t num_numa_nodes, size_t num_pages_to_try, size_t num_pages_to_reserve)
 {
@@ -349,6 +427,7 @@ mehcached_shm_init(size_t page_size, size_t num_numa_nodes, size_t num_pages_to_
 
 	//mehcached_shm_dump_page_info();
 }
+*/
 
 void *
 mehcached_shm_find_free_address(size_t size)
@@ -577,8 +656,13 @@ mehcached_shm_map(size_t entry_id, void *ptr, size_t offset, size_t length)
 	size_t page_index = page_offset;
 	size_t page_index_end = page_offset + num_pages;
 	int error = 0;
+
+	int fd = open("/dev/mem", O_RDONLY);
+	assert(fd >= 0);
+
 	while (page_index < page_index_end)
 	{
+		/*
 		int fd = open(mehcached_shm_pages[mehcached_shm_entries[entry_id].pages[page_index]].path, O_RDWR);
 		if (fd == -1)
 		{
@@ -591,6 +675,10 @@ mehcached_shm_map(size_t entry_id, void *ptr, size_t offset, size_t length)
 		void *ret_p = mmap(p, mehcached_shm_page_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
 
 		close(fd);
+		*/
+
+		void *ret_p = mmap(p, mehcached_shm_page_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd,
+		                   mehcached_shm_pages[mehcached_shm_entries[entry_id].pages[page_index]].paddr);
 
 		if (ret_p == MAP_FAILED)
 		{
@@ -602,6 +690,9 @@ mehcached_shm_map(size_t entry_id, void *ptr, size_t offset, size_t length)
 		page_index++;
 		p = (void *)((size_t)p + mehcached_shm_page_size);
 	}
+
+	close(fd);
+
 	if (error)
 	{
 		// clean partialy mapped memory

@@ -59,7 +59,7 @@ set(SOURCES ${SOURCES} alloc_pool.c)
 set(SOURCES ${SOURCES} util.c)
 
 # common libraries
-set(LIBRARIES ${LIBRARIES} rt crypto perf_count m pthread)
+set(LIBRARIES ${LIBRARIES} rt crypto perf_count m pthread numa)
 
 # tcmalloc (optional)
 #add_definitions(-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free)
