@@ -17,6 +17,8 @@
 
 #include "mehcached.h"
 #include "hash.h"
+#include "shm.h"
+#include "util.h"
 
 void
 test_load()
